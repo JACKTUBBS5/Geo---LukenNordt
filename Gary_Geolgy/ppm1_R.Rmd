@@ -1,0 +1,103 @@
+---
+title: "PPM_1.0"
+author: "JDT"
+date: " "
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.height = 3)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60), tidy=TRUE)
+options("repos" = c(CRAN = "https://cran.rstudio.com"))
+```
+
+Needed Packages
+```{r, message=FALSE}
+if (!require("Tps")) install.packages("Tps")
+if (!require("fields")) install.packages("fields")
+
+if (!require("MASS")) install.packages("MASS")
+```
+
+Read PLS data 
+```{r}
+pls <- read.table('pls.csv',sep = ",", header = TRUE)
+summary(pls)
+```
+Run PLS
+
+```{r}
+if (!require("pls")) install.packages("pls")
+
+library(pls)
+
+# Read the 'combined' data into a data frame in R
+#combined <- read.csv("combined.csv")  # Replace "combined.csv" with your actual data file name
+
+# Perform PLS analysis
+
+#MolModel = Fe2O3_mol + MnO_mol + P2O5_mol + SiO2_mol +
+#  TiO2_mol + ZrO2_mol + Al2O3_mol + CaO_mol + Na2O_mol + MgO_mol + K2O_mol
+
+pls_model <- plsr(cl_MAP + cl_MAT ~ Fe2O3_mol + MnO_mol + P2O5_mol + SiO2_mol, 
+  data = pls, ncomp = 4, validation = "CV" )
+
+# Access the PLS results
+PRESS <- pls_model$validation$pred$PRESS  # Prediction Error Sum of Squares
+XSCORE <- pls_model$scores$x  # X-scores
+
+# Print the PLS results
+print(pls_model)
+print(PRESS)
+print(XSCORE)
+
+```
+
+
+Run Thin Plate Spline
+
+```{r}
+if (!require("mgcv")) install.packages("mgcv")
+
+library(fields)
+
+# Read the 'PLS' data into a data frame in R
+PLS <- read.csv("PLS.csv")  # Replace "PLS.csv" with your actual data file name
+
+# Subset the data based on missing values
+PLS <- subset(PLS, !is.na(cl_MAT) & !is.na(cl_MAP))
+
+# Create the thin-plate spline regression model
+x = cbind(PLS$factor1, PLS$factor2, PLS$factor3, PLS$factor4)
+Y = PLS$cl_MAT 
+model <- Tps(x,Y, data = PLS)
+
+# Generate predictions for new data ('User2')
+User2 <- read.csv("User2.csv")  # Replace "User2.csv" with your actual data file name
+user_pred <- predict(model, newdata = User2, type = "response")
+
+# Output the results
+estimated <- predict(model, type = "response")  # Predicted values
+pred <- predict(model, type = "link")  # Predicted values on the link scale
+uclm <- predict(model, type = "link", se.fit = TRUE)$fit + 1.96 * predict(model, type = "link", se.fit = TRUE)$se.fit  # Upper confidence limits
+lclm <- predict(model, type = "link", se.fit = TRUE)$fit - 1.96 * predict(model, type = "link", se.fit = TRUE)$se.fit  # Lower confidence limits
+r <- sqrt(fitted(model))  # Square root transformation of predicted values
+
+# Store the output in a data frame
+output <- data.frame(estimated, pred, uclm, lclm, r)
+
+# Print the output
+print(output)
+
+```
+
+
+```{r}
+Y = cbind(pls$cl_MAP, pls$cl_MAT)
+x = cbind(pls$factor1, pls$factor2, pls$factor3, pls$factor4)
+
+x
+require(fields)
+fit = Tps(x,Y)
+```
+
