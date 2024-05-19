@@ -1,0 +1,2 @@
+new files where the miising values = zero are replaced by the average for the variable 
+with missing values (=0) are r given. the file pls(miss).csv can be used in R 
